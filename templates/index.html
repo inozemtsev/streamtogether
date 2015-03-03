@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<form class="form-inline" style="text-align: center" action="/" method="POST">
+    <div class="form-group">
+	    <div class="input-group">
+			<div class="input-group-addon"><i class="glyphicon glyphicon-user"></i></div>
+			<input type="text" class="form-control" id="username" name="username" placeholder="Username">
+	    </div>
+	    <div class="input-group">
+			<div class="input-group-addon"><i class="glyphicon glyphicon-comment"></i></div>
+			<input type="text" class="form-control" id="roomname" name="roomname" placeholder="Room" value="{{ room }}">
+	    </div>
+        <button type="submit" class="btn btn-primary">Join</button>
+    </div>
+</form>
+{% endblock %}

@@ -1,0 +1,35 @@
+<html>
+<head>
+    <script type="text/javascript" src="/static/socket.io.min.js"></script>
+    <script type="text/javascript" src="/static/jquery-2.1.1.min.js"></script>
+    <script type="text/javascript" src="/static/bootstrap/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="/static/moment.min.js"></script>
+    <script type="text/javascript" src="/static/bootstrap.file-input.js"></script>
+    <script type="text/javascript" src="/static/bootstrap/js/vk_api.js"></script>
+    <link rel="stylesheet" href="/static/bootstrap/css/bootstrap.min.css">
+    <title>collab.ro</title>
+    {% block style %}{% endblock %}
+    {% block js_head %}{% endblock %}
+</head>
+<body>
+    {% block logo %}
+    <div class="page-header" align="center">
+        <h1>
+            <span style="color: #40C220">collab</span><span style="color: #fe781e">.ro</span>
+            <br/>
+            <small></small>
+        </h1>
+    </div>
+    {% endblock %}
+    <div class="container">
+    {% block content %}{% endblock %}
+    </div>
+    <div class="footer">
+        <div class="col-xs-12">
+            <p>Copyright &copy; NaN Team, 2014</p>
+        </div>
+    </div>
+    {% block js_body %}{% endblock %}
+
+</body>
+</html> 

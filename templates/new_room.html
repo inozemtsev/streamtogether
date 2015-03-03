@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<form action="/room/" method="POST">
+    <div class="form-group">
+        <label class="control-label" for="focusedInput">Nickname</label>
+        <input class="form-control" id="focusedInput" type="text" name="username" placeholder="Enter your nickname here" autofocus>
+        <br>
+        <label class="control-label" for="focusedInput">Room Name</label>
+        <input class="form-control" id="focusedInput" type="text" name="roomname" placeholder="Enter your nickname here" autofocus>
+        <br>                
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </div>
+</form>
+{% endblock %}

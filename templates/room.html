@@ -1,0 +1,494 @@
+{% extends "base.html" %}
+{% block style %}
+<style>
+    body {
+        background: none repeat scroll 0 0 white;
+    }
+    .chat
+    {
+        list-style: none;
+        word-wrap: break-word;
+    }
+    ul
+    {
+        word-wrap: break-word;   
+    }
+</style>
+{% endblock %}
+
+{% block js_head %}
+<script type="text/javascript" charset="utf-8">
+    function showVideo(url) {
+        $('#mp4source').attr ('src', url);
+        video.load();
+    }
+
+    function likeVideo() {
+        socket.emit('like_video', video.currentTime);
+        return false;
+    }
+
+    function likePres() {
+        socket.emit('like_pres', CurrentImage);
+        return false;
+    }
+
+    function addVideo () {
+        var link = $("#focusedInput").val();
+        socket.emit ('link', link);
+        $("#focusedInput").val('')
+        showVideo (link);
+        return false;
+    }
+    
+    function SendMessage () {
+        var msg = $('#btn-input').val();
+        socket.emit ('new_msg_from_client', {'sender':'{{user}}', 'text':msg, 'room':'{{room['name']}}'});
+        $('#btn-input').val('');
+    };
+
+    
+    function addPresentation () {
+        // $('#video').hide();
+        var inputFiles = $('#presentation-input')[0].files;
+        attachments=[];
+        for (var i = 0, f; f = inputFiles[i]; i++) {
+            var imageReader = new FileReader();
+            imageReader.onload = (function(aFile) {
+                return function(e){
+                    var tempFileData=e.target.result;
+                    attachments.push ({'name':aFile.name, 'content_type':tempFileData.split(",")[0].split(":")[1].split(";")[0], 'data':tempFileData});
+                };
+            })(f);
+            imageReader.readAsDataURL(f);
+        }  
+        setTimeout (function () {
+            socket.emit ('presentation_to_server', {'data':attachments});
+            console.log (attachments);
+        }, 1000);
+        showPresentation();
+        DrawImageOnCanvas (1);    
+    }
+
+    function DrawImageOnCanvas (index) {
+        CurrentImage = index;
+        var img = new Image();
+        img.src = presentation[index-1].data;
+        $('#img-num').text(index + '/' + presentation.length);
+        context.drawImage (img, 0, 0, img.width, img.height, 0, 0, canvas.width, canvas.height);
+
+        $('#pres-likes ul').empty();
+
+        for (var i = 0; i < pres_likes.length; i++) {
+            var lk = pres_likes[i];
+            if (lk[1] == CurrentImage) {
+                $('#pres-likes ul').append('<li><i class="glyphicon glyphicon-heart"></i>by ' + lk[0] + '</li>');
+            }
+        }
+    }
+
+    function moveLeft () {
+        if (CurrentImage==1) 
+            DrawImageOnCanvas (presentation.length);
+        else DrawImageOnCanvas (CurrentImage-1);
+        socket.emit ('update_presentation', CurrentImage);
+        }
+
+    function moveRight () {
+        if (CurrentImage==(presentation.length)) 
+            DrawImageOnCanvas (1);
+        else DrawImageOnCanvas (CurrentImage+1);
+        socket.emit ('update_presentation', CurrentImage);
+    }
+
+    function clearCanvas() {
+        socket.emit ('clear_canvas');
+    }
+    
+    setInterval (function () {
+        socket.emit('want_to_sync', {'room':'{{room['name']}}', 'user':'{{user}}'});
+    }, 2000);
+
+</script>
+{% endblock %}
+{% block content %}
+
+<div class="row" id="grid-1-1">
+    <div class="col-sm-7">
+        <div role="tabpanel">
+            <ul class="nav nav-pills" role="tablist">
+                <li class="active"><a href="#video-tab" data-toggle="tab">Video</a></li>
+                <li><a href="#presentation" data-toggle="tab">Presentation</a></li>
+            </ul>
+
+            <div class="tab-content">
+                <div class="tab-pane active" id="video-tab">
+                    <div class="form-horizontal" role="form">
+                        <div class="input-group">
+                            <input class="form-control" id="focusedInput" type="text" name="link" placeholder="Link to the video">
+                            <span class="input-group-btn">
+                                <button onclick="addVideo()" class="btn btn-primary">Add</button>
+                            </span>
+                        </div>
+                    </div>
+                    <video class="img img-responsive" controls="" preload="" id="video">
+                        <source id="mp4source" src="" type="video/mp4">
+                            Your browser does not support the video tag
+                    </video>
+
+                    <div id="video-likes">
+                        <a href="#" onclick="likeVideo(); return false;" class="pull-left glyphicon glyphicon-heart" style="font-size: 2em"></a>
+                        <span class="text-muted">Likes appear here...</span>
+                        <ul></ul>
+                    </div>
+                </div>
+                <div class="tab-pane" id="presentation">
+                    <input type="file" multiple="multiple" id="presentation-input" name="files[]" accept="image" onchange="addPresentation()"/>
+                    <canvas id="presentation-place" class="img img-responsive" style="height:400px"></canvas>
+                    <a class="pull-left glyphicon glyphicon-chevron-left" style="font-size: 2em" onclick="moveLeft()"></a>
+                    <span id="img-num" style="font-size: 2em; text-align: center; display: inline-block; width: 90%; margin: auto"></span>
+                    <a class="pull-right glyphicon glyphicon-chevron-right" style="font-size: 2em" onclick="moveRight()"></a>
+
+                    <div id="pres-likes">
+                        <a href="#" onclick="likePres(); return false;" class="pull-left glyphicon glyphicon-heart" style="font-size: 2em"></a>
+                        <span class="text-muted">Likes appear here...</span>
+                        <ul></ul>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div> 
+    <div class="col-sm-5">
+        <h3>Room: {{ room['name'] }}</h3>
+        <span class="text-muted"><i class="glyphicon glyphicon-info-sign"></i>&nbsp;Share the link with your friends or collegues.</span>
+        <div style="height:200px; overflow-y:auto">
+            <table id="status_table" class="table table-condensed">
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+        <div class="panel panel-primary">
+            <div class="panel-body" style="height:200px; overflow-y:auto">
+                <ul class="chat">
+                    <li class="text-muted">Write messages and they will appear here for all the room members...</li>
+                </ul>
+            </div>
+            <div class="panel-footer">
+                <form id="sumbit_text_form" method="post" action="javascript:void(0);" onsubmit="SendMessage()">
+                    <div class="input-group">
+                        <input id="btn-input" type="text" class="form-control input-sm" placeholder="Type your message here...">
+                        <span class="input-group-btn">
+                            <button class="btn btn-warning btn-sm" id="btn-chat">
+                                Send
+                            </button>
+                        </span>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row" id="peer-videos">
+</div>
+
+{% endblock %}
+{% block js_body %}
+<script type="text/javascript" src="/static/socket.io.min.js"></script>
+
+
+<script type="text/javascript" charset="utf-8">
+$(function () {
+    canvas = $('#presentation-place')[0];
+    context = canvas.getContext('2d');
+    socket = io.connect ('http://' + document.domain + ':' + location.port);
+    isPainting=false;
+    console.log (canvas.height, $(canvas).innerHeight());
+    $(canvas).bind ("mousedown", function(e) {
+        isPainting = true;
+        lastPoint = {x: e.offsetX, y: e.offsetY};
+    });
+
+    $(canvas).bind ("mousemove" ,function(e) {
+        if (isPainting) {
+            var line = {x1:lastPoint.x, y1: lastPoint.y, x2: e.offsetX, y2: e.offsetY};
+            console.log (line.x1, line.y1, line.x2, line.y2);
+            context.beginPath();
+            context.strokeStyle = 'red'
+            context.moveTo(line.x1*(canvas.width / $(canvas).innerWidth()),line.y1*(canvas.height / $(canvas).innerHeight()));
+            context.lineTo(line.x2*(canvas.width / $(canvas).innerWidth()),line.y2*(canvas.height / $(canvas).innerHeight()));
+            context.stroke();
+            // context.closePath();           
+
+            lastPoint = {x: e.offsetX, y: e.offsetY};
+        }
+    });
+
+    $(canvas).bind ("mouseup", function(e) {
+        isPainting = false;
+        var dataURL = canvas.toDataURL();
+        socket.emit ('update_current_image', {'dataURL':dataURL});
+    });
+    var video = document.getElementById ("video");
+    PeerConnection = window.mozRTCPeerConnection || window.webkitRTCPeerConnection;
+    IceCandidate = window.mozRTCIceCandidate || window.RTCIceCandidate;
+    SessionDescription = window.mozRTCSessionDescription || window.RTCSessionDescription;
+    navigator.getUserMedia = navigator.getUserMedia || navigator.mozGetUserMedia || navigator.webkitGetUserMedia;
+    var configuration = {
+        iceServers: [
+            {url:'stun:stun01.sipphone.com'},
+            {url:'stun:stun.ekiga.net'},
+            {url:'stun:stun.fwdnet.net'},
+            {url:'stun:stun.ideasip.com'},
+            {url:'stun:stun.iptel.org'},
+            {url:'stun:stun.rixtelecom.se'},
+            {url:'stun:stun.schlund.de'},
+            {url:'stun:stun.l.google.com:19302'},
+            {url:'stun:stun1.l.google.com:19302'},
+            {url:'stun:stun2.l.google.com:19302'},
+            {url:'stun:stun3.l.google.com:19302'},
+            {url:'stun:stun4.l.google.com:19302'},
+            {url:'stun:stunserver.org'},
+            {url:'stun:stun.softjoys.com'},
+            {url:'stun:stun.voiparound.com'},
+            {url:'stun:stun.voipbuster.com'},
+            {url:'stun:stun.voipstunt.com'},
+            {url:'stun:stun.voxgratia.org'},
+            {url:'stun:stun.xten.com'},
+            {
+                url: 'turn:numb.viagenie.ca',
+                credential: 'muazkh',
+                username: 'webrtc@live.com'
+            },
+            {
+                url: 'turn:192.158.29.39:3478?transport=udp',
+                credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
+                username: '28224511:1379330808'
+            },
+            {
+                url: 'turn:192.158.29.39:3478?transport=tcp',
+                credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
+                username: '28224511:1379330808'
+            }
+        ]
+    };
+    var options = {
+        optional: [
+            {DtlsSrtpKeyAgreement: true},
+            {RtpDataChannels: true}
+        ]
+    };
+    
+    socket.emit ('join', {user: '{{user}}', room: '{{room['name']}}' });
+
+var pc;
+
+// call start() to initiate
+
+function start() {
+  pc = new PeerConnection(configuration);
+
+
+  // send any ice candidates to the other peer
+  pc.onicecandidate = function (evt) {
+    // if (evt.candidate)
+      // socket.emit ('initialize_videochat', evt.candidate)
+  };
+
+  // let the 'negotiationneeded' event trigger offer generation
+  pc.onnegotiationneeded = function () {
+    pc.createOffer(localDescCreated, logError);
+  }
+
+  // once remote stream arrives, show it in the remote video element
+  pc.onaddstream = function (evt) {
+    $('#peer-videos').append('<div class="col-sm-3"><video class="img img-responsive" id="remote-video" src="'+URL.createObjectURL(evt.stream)+'" autoplay></video></div>');
+  };
+
+  // get a local stream, show it in a self-view and add it to be sent
+  navigator.getUserMedia({
+    'audio': true,
+    'video': true
+  }, function (stream) {
+    $('#peer-videos').append('<div class="col-sm-3"><video class="img img-responsive" id="self-video" src="'+URL.createObjectURL(stream)+'" autoplay></video></div>');
+    pc.addStream(stream);
+  }, logError);
+}
+
+function localDescCreated(desc) {
+  pc.setLocalDescription(desc, function () {
+    socket.emit('initialize_videochat', pc.localDescription);
+    }, logError);
+}
+
+socket.on ('videochat_initialization', function(data) {
+  message = data;
+  console.log (message)
+  if (message.sdp)
+    pc.setRemoteDescription(new SessionDescription(message), function () {
+      // if we received an offer, we need to answer
+      if (pc.remoteDescription.type == 'offer')
+        pc.createAnswer(localDescCreated, logError);
+    }, logError);
+  // else
+    // pc.addIceCandidate(new IceCandidate(message.candidate));
+});
+
+function logError(error) {
+  console.log(error);
+}
+
+    setInterval (function () {
+                    socket.emit ('update_table', {'room':'{{room['name']}}', 'user':'{{user}}'});
+                }, 2000);
+
+    function update_users_table (data) {
+        var online = data['online'];
+        var offline = data['offline'];
+        $("#status_table tbody tr").remove();
+        table = $("#status_table tbody");
+        
+
+        for (i=0; i<online.length; i++) {
+            if (data['online'][i]!='{{user}}') {
+                table.append ('<tr class="success"><th>'+data['online'][i]+'</th></tr>');
+            } else {
+                table.append('<tr class="success"><th>{{user}} <span class="text-muted small pull-right">you</span></th></tr>');
+            }
+        }
+
+        for (j=0; j<offline.length; j++) {
+            table.append ('<tr class="danger"><th>'+data['offline'][j]+'</th>');
+        }
+    }
+
+    socket.on ('users_table', function(data) {
+        update_users_table (data);
+    });
+    socket.on ('information_for_new_user', function (data) {
+        var messages = data['messages'];
+        if (data['video']['playing_now'])
+            showVideo(data['video']['url']);
+        presentation = data['presentation']['data'];
+        if (data['presentation']['playing_now']) {
+            DrawImageOnCanvas(Math.abs(data['presentation']['playing_now']));
+            if (data['presentation']['playing_now'] > 0) {
+                $('a[href=#presentation]').tab('show');
+            }
+        }
+        update_users_table (data);
+        var text_chat = $(".chat");
+        if (text_chat.find('li div').length == 0 && messages.length > 0) {
+            text_chat.text('');
+        }
+        for (var i=0; i<messages.length; i++) {
+            var sender = messages[i]['sender'];
+            var text = messages[i]['text'];
+            var utc_time = messages[i]['time'];
+            var local_time = moment.utc(utc_time).toDate();
+            var relative_time = moment(local_time).fromNow();
+            var text_chat = $(".chat");
+            text_chat.append ('<li><div class="chat-body clearfix"><div class="header"><strong class="primary-font">'+sender+'</strong><small class="pull-right text-muted"><span class="glyphicon glyphicon-time"></span>&nbsp;<span class="rel-time" title="'+local_time+'">'+ relative_time+'</span></small></div><p>'+text+'</p></div></li>');
+                    
+}
+    start();
+    });
+    
+    socket.on ('linkmp4', function (video_link) {
+        showVideo(video_link);
+    });
+
+    video.onplay = function () {
+            socket.emit ('play', {user: '{{user}}', room: '{{room['name']}}', time:video.currentTime});
+    }
+
+    video.onpause = function () {
+            socket.emit ('pause', {user: '{{user}}', room: '{{room['name']}}', time:video.currentTime});
+    }
+
+    socket.on ('need_to_sync', function (data) {
+        video.currentTime = data['time'];
+        if (data['vstate'])
+            video.play();
+        else
+            video.pause();
+    });
+
+    socket.on('video_likes', function (likes) {
+        $('#video-likes ul').empty();
+
+        for (var i = 0; i < likes.length; i++) {
+            var lk = likes[i];
+            $('#video-likes ul').append('<li><i class="glyphicon glyphicon-heart"></i>by ' + lk[0] + ' at ' + lk[1].toFixed(2) + '</li>')
+        }
+    });
+
+    pres_likes = [];
+    socket.on('pres_likes', function (likes) {
+        pres_likes = likes;
+        console.log(pres_likes);
+        DrawImageOnCanvas(CurrentImage);
+    });
+
+    socket.on ('sync', function (sign) {
+        socket.emit ('need_to_sync', {'room':'{{room['name']}}', 'sign':sign, 'video_time':video.currentTime, 'user':'{{user}}'});
+    });
+
+    socket.on ('new_msg_from_server', function (data) {
+        sender = data['sender'];
+        text = data['text'];
+        utc_time = data['time'];
+        var local_time = moment.utc(utc_time).toDate();
+        var relative_time = moment(local_time).fromNow();
+        var text_chat = $(".chat");
+        if (text_chat.find('li div').length == 0) {
+            text_chat.text('');
+        }
+        text_chat.append ('<li><div class="chat-body clearfix"><div class="header"><strong class="primary-font">'+sender+'</strong><small class="pull-right text-muted"><span class="glyphicon glyphicon-time"></span>&nbsp;<span class="rel-time" title="'+local_time+'">'+ relative_time+'</span></small></div><p>'+text+'</p></div></li>');
+    });
+
+    setInterval (function () {
+        $(".rel-time").each(function() {
+            $(this).text(moment($(this).attr('title')).fromNow());
+        })
+    }, 10000);
+    socket.on ('presentation_to_clients', function(data) {
+        presentation = data.data;
+        showPresentation ();
+        DrawImageOnCanvas (1);
+    });       
+    socket.on ('update_presentation', function (index) {
+        DrawImageOnCanvas (index);
+    });
+
+    $('a[href=#presentation]').on('shown.bs.tab', function () {
+        socket.emit ('change_type', 'presentation');
+    });
+    $('a[href=#video-tab]').on('shown.bs.tab', function () {
+        socket.emit ('change_type', 'video');
+    });
+
+    socket.on ('change_type', function (type) {
+        if (type=='presentation') {
+            $('a[href=#presentation]').tab('show');
+        }
+        else {
+            if (type=='video') {
+                $('a[href=#video-tab]').tab('show');
+            }
+        }
+    });
+
+    socket.on ('update_current_image', function (data) {
+        presentation[CurrentImage-1].data=data['dataURL'];
+        DrawImageOnCanvas (CurrentImage);        
+    })
+
+    
+
+});
+ </script>
+{% endblock %}
+
+
