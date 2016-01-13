@@ -4,7 +4,7 @@ Platform for collaboration: discussing presentations and videos using text and v
 
 It promises to be very useful for holding conferences, chating with teachers and friends. It would be very helpful to download the results of conversations.
 
-#### Collab.ro & Car experts
+#### StreamTogether & Car experts
 Some additional opportunities are provided for automobile experts, traffic cops and judges. It helps to recognize car ids on photos, save these photos on local PC with corresponding names containing these ids. All these numbers are sent to chat. 
 
 Additional possibility is the marking of necessary fields on image and saving for the futher mining.
